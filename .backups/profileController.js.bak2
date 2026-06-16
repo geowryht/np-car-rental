@@ -1,0 +1,100 @@
+
+import { db } from '../config/firebase.js';
+import AppError from '../utils/AppError.js';
+
+export const getProfile = async (req, res, next) => {
+    try {
+        const doc = await db.collection("users").doc(req.user.uid).get();
+        if (!doc.exists) throw new AppError("User not found", 404);
+        const { password, ...data } = doc.data();
+        res.json({ id: doc.id, ...data });
+    }
+    catch (err) {
+        next(err);
+    }
+};
+
+export const updateProfile = async (req, res, next) => {
+    try {
+        const { fullName, contactNumber, address } = req.body;
+        const updates = {};
+        if (fullName) updates.fullName = fullName;
+        if (contactNumber) updates.contactNumber = contactNumber;
+        if (address) updates.address = address;
+
+        await db.collection("users").doc(req.user.uid).update(updates);
+        res.json({ message: "Profile updated" });
+    }
+    catch (err) {
+        next(err);
+    }
+};
+
+export const becomeHost = async (req, res, next) => {
+    try{
+        const { name, contactNumber, address, validId, selfieWithId } = req.body;
+
+        if (
+            !name?.firstName ||
+            !name?.middleName ||
+            !name?.lastName ||
+            !contactNumber ||
+            !address?.region ||
+            !address?.province ||
+            !address?.cityMunicipality ||
+            !address?.barangay ||
+            !address?.streetAddress ||
+            !address?.zipCode ||
+            !validId?.idType ||
+            !validId?.idNumber ||
+            !validId?.fileName ||
+            !selfieWithId?.fileName
+        ) {
+            throw new AppError("Please complete all required host application fields", 400);
+        }
+
+        const existing = await db.collection("users").doc(req.user.uid).get();
+        const currentStatus = existing.data()?.hostInfo?.status;
+        if (currentStatus === "pending") {
+            throw new AppError("You already have a pending host application", 400);
+        }
+        if (currentStatus === "approved" || existing.data()?.role === "host") {
+            throw new AppError("You are already a host", 400);
+        }
+
+        await db.collection("users").doc(req.user.uid).update({
+            hostInfo: {
+                name: {
+                    prefix: name.prefix || "",
+                    firstName: name.firstName,
+                    middleName: name.middleName,
+                    lastName: name.lastName,
+                },
+                contactNumber,
+                address: {
+                    region: address.region,
+                    province: address.province,
+                    cityMunicipality: address.cityMunicipality,
+                    barangay: address.barangay,
+                    streetAddress: address.streetAddress,
+                    unitFloorBuilding: address.unitFloorBuilding || "",
+                    zipCode: address.zipCode,
+                },
+                validId: {
+                    idType: validId.idType,
+                    idNumber: validId.idNumber,
+                    fileName: validId.fileName,
+                },
+                selfieWithId: {
+                    fileName: selfieWithId.fileName,
+                },
+                status: "pending",
+                submittedAt: new Date(),
+            },
+        });
+        res.json({message: "Host application submitted"});
+    }
+    catch(err){
+        next(err);
+    }
+};

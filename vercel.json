@@ -1,0 +1,23 @@
+{
+    "version": 2,
+    "rewrites": [
+        {
+            "source": "/api/(.*)",
+            "destination": "/api"
+        }
+    ],
+    "crons": [
+        {
+            "path": "/api/cron/cleanup-stale-uploads",
+            "schedule": "*/30 * * * *"
+        },
+        {
+            "path": "/api/cron/check-overdue-bookings",
+            "schedule": "*/5 * * * *"
+        },
+        {
+            "path": "/api/cron/expire-unconfirmed",
+            "schedule": "*/2 * * * *"
+        }
+    ]
+}
