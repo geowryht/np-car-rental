@@ -57,12 +57,16 @@ process.on("unhandledRejection", (err) => console.error("UNHANDLED:", err));
 app.get("/", (req, res) => res.send("NP Car Rental API"));
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-  cleanupStaleUploads();
-  setInterval(cleanupStaleUploads, 30 * 60 * 1000);
-  checkOverdueBookings();
-  setInterval(checkOverdueBookings, 5 * 60 * 1000);
-  expireUnconfirmed();
-  setInterval(expireUnconfirmed, 2 * 60 * 1000);
-});
+if (!process.env.VERCEL) {
+    app.listen(PORT, () => {
+        console.log(`Server running on port ${PORT}`);
+        cleanupStaleUploads();
+        setInterval(cleanupStaleUploads, 30 * 60 * 1000);
+        checkOverdueBookings();
+        setInterval(checkOverdueBookings, 5 * 60 * 1000);
+        expireUnconfirmed();
+        setInterval(expireUnconfirmed, 2 * 60 * 1000);
+    });
+}
+
+export default app;
