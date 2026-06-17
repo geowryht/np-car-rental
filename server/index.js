@@ -14,7 +14,7 @@ import hostRoutes from './routes/hostRoutes.js';
 import adminRoutes from './routes/adminRoutes.js';
 import reviewRoutes from './routes/reviewRoutes.js';
 import cronRoutes from './routes/cronRoutes.js';
-import { csrfProtect, setCsrfCookie } from './middleware/csrf.js';
+import { csrfProtect } from './middleware/csrf.js';
 import uploadRoutes from './routes/uploadRoutes.js';
 import paymentRoutes from './routes/paymentRoutes.js';
 import { handleWebhook } from './controllers/paymentController.js';
@@ -31,7 +31,6 @@ app.use(cookieParser());
 app.post("/api/payments/webhook", express.raw({ type: "application/json" }), handleWebhook);
 
 app.use(express.json({ limit: "10mb" }));
-app.use(setCsrfCookie);
 
 const registerLimiter = rateLimit({ windowMs: 60 * 60 * 1000, max: 3, message: { message: "Too many registration attempts. Try again later." } });
 const adminLimiter = rateLimit({ windowMs: 60 * 1000, max: 30, message: { message: "Too many requests. Slow down." } });
