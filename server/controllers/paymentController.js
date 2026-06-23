@@ -1,6 +1,6 @@
 import { db } from "../config/firebase.js";
 import AppError from "../utils/AppError.js";
-import { createPaymentLink, verifyWebhookSignature, refundPayment } from "../services/paymongo.js";
+import { createPaymentLink, verifyWebhookSignature, refundPayment, getLinkStatus } from "../services/paymongo.js";
 
 const PLATFORM_FEE = 0.15;
 const PENDING_PAYMENT_TIMEOUT_MINUTES = 30;
@@ -112,7 +112,7 @@ export const createCheckout = async (req, res, next) => {
 
         const { linkId, checkoutUrl } = await createPaymentLink({
             amount: totalPrice,
-            description: `${vehicle.brand} ${vehicle.model} - ${days} day(s)`,
+            description: `${vehicle.brand} ${vehicle.model} - ${days} day(s) | bid:${bookingRef.id}`,
             bookingId: bookingRef.id,
         });
 
@@ -167,9 +167,13 @@ export const handleWebhook = async (req, res, next) => {
             const paymentId = data.id;
             const attributes = data.attributes;
             const method = (attributes.source?.type) || (attributes.payments?.[0]?.source?.type || "card");
-            const referenceNumber = attributes.reference_number;
+            const description = attributes.statement_descriptor || attributes.description || "";
+            const match = description.match(/bid:(\w+)/);
+            const bookingId = match ? match[1] : attributes.reference_number;
 
-            const bookingRef = db.collection("bookings").doc(referenceNumber);
+            if (!bookingId) return res.status(200).json({ message: "No booking ID found" });
+
+            const bookingRef = db.collection("bookings").doc(bookingId);
             const bookingDoc = await bookingRef.get();
 
             if (!bookingDoc.exists) return res.status(200).json({ message: "Booking not found" });
@@ -178,7 +182,7 @@ export const handleWebhook = async (req, res, next) => {
             if (booking.status !== "pending_payment") return res.status(200).json({ message: "Already processed" });
 
             await db.collection("payments").doc(paymentId).set({
-                bookingId: referenceNumber,
+                bookingId: bookingId,
                 renterId: booking.renterId,
                 hostId: booking.hostId,
                 amount: attributes.amount / 100,
@@ -221,6 +225,52 @@ export const getPaymentStatus = async (req, res, next) => {
     } catch (err) {
         next(err);
     }
+};
+
+export const verifyPayment = async (req, res, next) => {
+    try {
+        const doc = await db.collection("bookings").doc(req.params.bookingId).get();
+        if (!doc.exists) throw new AppError("Booking not found", 404);
+        const booking = doc.data();
+
+        if (booking.status !== "pending_payment") {
+            return res.json({ verified: true, status: booking.status });
+        }
+
+        if (!booking.paymentLinkId || booking.paymentLinkId === "dev_skip" || booking.paymentLinkId.startsWith("dev_")) {
+            return res.json({ verified: false, status: booking.status });
+        }
+
+        const result = await getLinkStatus(booking.paymentLinkId);
+
+        if (result.paid) {
+            const paymentRecordRef = db.collection("payments").doc(result.paymentId || booking.paymentLinkId);
+            await paymentRecordRef.set({
+                bookingId: req.params.bookingId,
+                renterId: booking.renterId,
+                hostId: booking.hostId,
+                amount: booking.totalPrice,
+                method: result.paymentMethod || "card",
+                paymongoPaymentId: result.paymentId || booking.paymentLinkId,
+                status: "paid",
+                createdAt: new Date(),
+                paidAt: new Date(),
+            });
+
+            await doc.ref.update({
+                status: "paid",
+                paymentMethod: result.paymentMethod || "card",
+                paymentId: result.paymentId || booking.paymentLinkId,
+                paymentStatus: "paid",
+                paidAt: new Date(),
+                updatedAt: new Date(),
+            });
+
+            return res.json({ verified: true, status: "paid" });
+        }
+
+        res.json({ verified: false, status: booking.status });
+    } catch (err) { next(err); }
 };
 
 export const refundBooking = async (req, res, next) => {

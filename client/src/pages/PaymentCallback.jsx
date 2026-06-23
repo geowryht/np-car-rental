@@ -16,32 +16,44 @@ export default function PaymentCallback() {
 
         let attempts = 0;
         const maxAttempts = 40;
+        let active = true;
+        pollRef.current = null;
 
-        const poll = async () => {
+        const checkPaid = (data) => data.status === "paid" || data.status === "confirmed";
+
+        const verifyAndPoll = async () => {
             try {
-                const data = await api.get(`/payments/status/${bookingId}`);
-                if (data.status === "paid" || data.status === "confirmed") {
+                const verify = await api.post(`/payments/verify/${bookingId}`);
+                if (!active) return;
+                if (verify.verified) {
                     setStatus("paid");
                     return;
                 }
-                if (data.status === "refunded" || data.status === "cancelled") {
-                    setStatus("failed");
-                    return;
-                }
-            } catch {
-            }
+            } catch { }
 
-            attempts++;
-            if (attempts >= maxAttempts) {
-                setStatus("timeout");
-            } else {
-                pollRef.current = setTimeout(poll, 3000);
-            }
+            const poll = async () => {
+                if (!active) return;
+                try {
+                    const data = await api.get(`/payments/status/${bookingId}`);
+                    if (checkPaid(data)) { setStatus("paid"); return; }
+                    if (data.status === "refunded" || data.status === "cancelled") { setStatus("failed"); return; }
+                } catch { }
+
+                attempts++;
+                if (attempts >= maxAttempts) {
+                    setStatus("timeout");
+                } else {
+                    pollRef.current = setTimeout(poll, 3000);
+                }
+            };
+
+            poll();
         };
 
-        poll();
+        verifyAndPoll();
 
         return () => {
+            active = false;
             if (pollRef.current) clearTimeout(pollRef.current);
         };
     }, [bookingId]);

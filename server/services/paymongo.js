@@ -7,6 +7,7 @@ function auth() {
 }
 
 export async function createPaymentLink({ amount, description, bookingId }) {
+    const clientUrl = process.env.CLIENT_URL || "http://localhost:5173";
     const body = JSON.stringify({
         data: {
             attributes: {
@@ -14,6 +15,10 @@ export async function createPaymentLink({ amount, description, bookingId }) {
                 currency: "PHP",
                 description,
                 reference_number: bookingId,
+                redirect: {
+                    success: `${clientUrl}/payment/callback?bookingId=${bookingId}`,
+                    failed: `${clientUrl}/payment/callback?bookingId=${bookingId}&status=failed`,
+                },
             },
         },
     });
@@ -58,4 +63,25 @@ export async function refundPayment(paymentId, amount) {
     const data = await res.json();
     if (!res.ok) throw new Error(data.errors?.[0]?.detail || "Refund failed");
     return data.data;
+}
+
+export async function getLinkStatus(linkId) {
+    const res = await fetch(`${PAYMONGO_BASE}/links/${linkId}`, {
+        headers: { Authorization: auth() },
+    });
+
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.errors?.[0]?.detail || "Failed to fetch link status");
+
+    const attrs = data.data.attributes;
+    const payments = attrs.payments || [];
+    const lastPayment = payments.length > 0 ? payments[payments.length - 1] : null;
+
+    return {
+        status: attrs.status,
+        paid: attrs.status === "paid" || (lastPayment?.data?.attributes?.status === "paid"),
+        paymentId: lastPayment?.data?.id || null,
+        paymentMethod: lastPayment?.data?.attributes?.source?.type || null,
+        amount: attrs.amount / 100,
+    };
 }
