@@ -7,7 +7,6 @@ function auth() {
 }
 
 export async function createPaymentLink({ amount, description, bookingId }) {
-    const clientUrl = process.env.CLIENT_URL || "http://localhost:5173";
     const body = JSON.stringify({
         data: {
             attributes: {
@@ -15,10 +14,6 @@ export async function createPaymentLink({ amount, description, bookingId }) {
                 currency: "PHP",
                 description,
                 reference_number: bookingId,
-                redirect: {
-                    success: `${clientUrl}/payment/callback?bookingId=${bookingId}`,
-                    failed: `${clientUrl}/payment/callback?bookingId=${bookingId}&status=failed`,
-                },
             },
         },
     });
