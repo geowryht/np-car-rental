@@ -37,9 +37,18 @@ export default function MyBookings() {
         try {
             const endpoint = `/bookings/mine?limit=20${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ""}`;
             const data = await api.get(endpoint);
-            setBookings((prev) => append ? [...prev, ...data.bookings] : data.bookings);
+            const loaded = data.bookings;
+            setBookings((prev) => append ? [...prev, ...loaded] : loaded);
             setPage({ nextCursor: data.nextCursor, hasMore: data.hasMore, loadingMore: false });
             setLoading(false);
+
+            if (!append) {
+                loaded.forEach((b) => {
+                    if (b.status === "pending_payment") {
+                        api.post(`/payments/verify/${b.id}`).catch(() => {});
+                    }
+                });
+            }
         } catch (err) {
             setError(err.message);
             setLoading(false);
