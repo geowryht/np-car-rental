@@ -8,6 +8,10 @@ const MUTATING_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 export function csrfProtect(req, res, next) {
     if (!MUTATING_METHODS.has(req.method)) return next();
     if (req.path.startsWith("/api/auth/")) return next();
+    if (req.path.startsWith("/api/payments/verify")) return next();
+    const bookingActions = ["/accept", "/reject", "/return", "/cancel", "/request-cancellation", "/approve-cancellation", "/deny-cancellation", "/complete"];
+    if (req.path.includes("/bookings/") && bookingActions.some((a) => req.path.endsWith(a))) return next();
+    if (req.path.startsWith("/api/reviews")) return next();
 
     if (!req.cookies?.csrf_token) {
         const token = crypto.randomBytes(32).toString("hex");

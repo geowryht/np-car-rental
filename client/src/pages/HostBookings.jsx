@@ -36,11 +36,12 @@ const statusColors = {
     returned: "bg-blue-100 text-blue-800",
     completed: "bg-blue-100 text-blue-800",
     cancelled: "bg-red-100 text-red-800",
+    cancellation_requested: "bg-orange-100 text-orange-800",
     rejected: "bg-background text-primary/60",
     expired: "bg-gray-100 text-gray-600",
 };
 
-const statusOptions = ["all", "pending", "paid", "confirmed", "returned", "cancelled", "rejected", "expired"];
+const statusOptions = ["all", "pending", "paid", "confirmed", "returned", "cancellation_requested", "cancelled", "rejected", "expired"];
 
 export default function HostBookings() {
     const [bookings, setBookings] = useState([]);
@@ -85,6 +86,16 @@ export default function HostBookings() {
 
     const handleReturn = async (id) => {
         try { await api.put(`/bookings/${id}/return`); load(); }
+        catch (err) { alert(err.message); }
+    };
+
+    const handleApproveCancellation = async (id) => {
+        try { await api.put(`/bookings/${id}/approve-cancellation`); load(); }
+        catch (err) { alert(err.message); }
+    };
+
+    const handleDenyCancellation = async (id) => {
+        try { await api.put(`/bookings/${id}/deny-cancellation`); load(); }
         catch (err) { alert(err.message); }
     };
 
@@ -135,7 +146,7 @@ export default function HostBookings() {
                                     )}
                                     <div className="min-w-0">
                                         <p className="font-bold text-primary">{b.vehicle?.brand || "Vehicle"} {b.vehicle?.model || ""}</p>
-                                        <p className="text-sm text-primary/50">Renter: {b.renterName}</p>
+                                        <p className="text-sm text-primary/80">Renter: {b.renterName}</p>
                                     </div>
                                 </div>
                                 <span className={`shrink-0 rounded-full px-3 py-1 text-xs font-semibold capitalize ${statusColors[b.status] || ""}`}>
@@ -145,15 +156,15 @@ export default function HostBookings() {
 
                             <div className="mt-4 grid grid-cols-3 gap-4 text-sm">
                                 <div>
-                                    <p className="text-primary/50">Pick-up</p>
+                                    <p className="text-primary/80">Pick-up</p>
                                     <p className="font-semibold text-primary">{formatDateTime(b.startDate)}</p>
                                 </div>
                                 <div>
-                                    <p className="text-primary/50">Return</p>
+                                    <p className="text-primary/80">Return</p>
                                     <p className="font-semibold text-primary">{formatDateTime(b.endDate)}</p>
                                 </div>
                                 <div>
-                                    <p className="text-primary/50">Total</p>
+                                    <p className="text-primary/80">Total</p>
                                     <p className="font-semibold text-primary">PHP {b.totalPrice?.toLocaleString()}</p>
                                 </div>
                             </div>
@@ -163,7 +174,7 @@ export default function HostBookings() {
 
                             {b.status === "pending" && (
                                 <div className="mt-4 flex gap-2">
-                                    <button type="button" onClick={() => handleAccept(b.id)} className="rounded-xl bg-green-600 px-5 py-2 text-sm font-bold text-white hover:bg-green-500">Accept</button>
+                                    <button type="button" onClick={() => handleAccept(b.id)} className="rounded-xl bg-green-600 px-5 py-2 text-sm font-bold text-white hover:bg-green-500">Release</button>
                                     <button type="button" onClick={() => handleReject(b.id)} className="rounded-xl border border-primary/15 px-5 py-2 text-sm font-semibold text-primary/80 hover:bg-accent/10">Reject</button>
                                 </div>
                             )}
@@ -172,7 +183,7 @@ export default function HostBookings() {
                                 <div className="mt-4 space-y-2">
                                     <p className="text-xs font-semibold text-amber-700">{countdownText(b.paidAt)}</p>
                                     <div className="flex gap-2">
-                                        <button type="button" onClick={() => handleAccept(b.id)} className="rounded-xl bg-green-600 px-5 py-2 text-sm font-bold text-white hover:bg-green-500">Accept</button>
+                                        <button type="button" onClick={() => handleAccept(b.id)} className="rounded-xl bg-green-600 px-5 py-2 text-sm font-bold text-white hover:bg-green-500">Release</button>
                                         <button type="button" onClick={() => handleReject(b.id)} className="rounded-xl border border-primary/15 px-5 py-2 text-sm font-semibold text-primary/80 hover:bg-accent/10">Reject</button>
                                     </div>
                                 </div>
@@ -180,8 +191,25 @@ export default function HostBookings() {
 
                             {b.status === "confirmed" && (
                                 <div className="mt-4 flex gap-2">
-                                    <button type="button" onClick={() => handleReturn(b.id)} className="rounded-xl bg-blue-600 px-5 py-2 text-sm font-bold text-white hover:bg-blue-500">Mark Returned</button>
+                                    {new Date(b.endDate) < new Date() ? (
+                                        <button type="button" onClick={() => handleReturn(b.id)} className="rounded-xl bg-blue-600 px-5 py-2 text-sm font-bold text-white hover:bg-blue-500">Mark Returned</button>
+                                    ) : (
+                                        <button type="button" disabled className="rounded-xl bg-gray-300 px-5 py-2 text-sm font-bold text-gray-500 cursor-not-allowed">Mark Returned</button>
+                                    )}
                                     <button type="button" onClick={() => handleCancel(b.id)} className="rounded-xl border border-primary/15 px-5 py-2 text-sm font-semibold text-primary/80 hover:bg-accent/10">Cancel</button>
+                                </div>
+                            )}
+
+                            {b.status === "cancellation_requested" && (
+                                <div className="mt-4 flex gap-2">
+                                    <button type="button" onClick={() => handleApproveCancellation(b.id)} className="rounded-xl bg-red-600 px-5 py-2 text-sm font-bold text-white hover:bg-red-500">Approve Cancellation</button>
+                                    <button type="button" onClick={() => handleDenyCancellation(b.id)} className="rounded-xl border border-primary/15 px-5 py-2 text-sm font-semibold text-primary/80 hover:bg-accent/10">Deny</button>
+                                </div>
+                            )}
+
+                            {b.status === "cancelled" && (
+                                <div className="mt-4">
+                                    <button type="button" onClick={() => handleReturn(b.id)} className="rounded-xl bg-blue-600 px-5 py-2 text-sm font-bold text-white hover:bg-blue-500">Mark Returned</button>
                                 </div>
                             )}
 

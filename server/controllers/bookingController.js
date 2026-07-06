@@ -213,6 +213,45 @@ export const cancelBooking = async (req, res, next) => {
   }
 };
 
+export const requestCancellation = async (req, res, next) => {
+    try {
+        const ref = db.collection("bookings").doc(req.params.id);
+        const doc = await ref.get();
+        if (!doc.exists) throw new AppError("Booking not found", 404);
+        const booking = doc.data();
+        if (booking.renterId !== req.user.uid) throw new AppError("Not authorized", 403);
+        if (booking.status !== "confirmed") throw new AppError("Only confirmed bookings can request cancellation", 400);
+        await ref.update({ status: "cancellation_requested", updatedAt: new Date() });
+        res.json({ message: "Cancellation requested" });
+    } catch (err) { next(err); }
+};
+
+export const approveCancellation = async (req, res, next) => {
+    try {
+        const ref = db.collection("bookings").doc(req.params.id);
+        const doc = await ref.get();
+        if (!doc.exists) throw new AppError("Booking not found", 404);
+        const booking = doc.data();
+        if (booking.hostId !== req.user.uid) throw new AppError("Not authorized", 403);
+        if (booking.status !== "cancellation_requested") throw new AppError("No cancellation request", 400);
+        await ref.update({ status: "cancelled", updatedAt: new Date() });
+        res.json({ message: "Cancellation approved" });
+    } catch (err) { next(err); }
+};
+
+export const denyCancellation = async (req, res, next) => {
+    try {
+        const ref = db.collection("bookings").doc(req.params.id);
+        const doc = await ref.get();
+        if (!doc.exists) throw new AppError("Booking not found", 404);
+        const booking = doc.data();
+        if (booking.hostId !== req.user.uid) throw new AppError("Not authorized", 403);
+        if (booking.status !== "cancellation_requested") throw new AppError("No cancellation request", 400);
+        await ref.update({ status: "confirmed", updatedAt: new Date() });
+        res.json({ message: "Cancellation denied" });
+    } catch (err) { next(err); }
+};
+
 export const getHostEarnings = async (req, res, next) => {
   try {
     const snap = await db.collection("bookings")
@@ -305,7 +344,7 @@ export const returnBooking = async (req, res, next) => {
         if (!doc.exists) throw new AppError("Booking not found", 404);
         const booking = doc.data();
         if (booking.hostId !== req.user.uid) throw new AppError("Not authorized", 403);
-        if (booking.status !== "confirmed") throw new AppError("Booking is not confirmed", 400);
+        if (booking.status !== "confirmed" && booking.status !== "cancelled") throw new AppError("Booking is not confirmed or cancelled", 400);
 
         await ref.update({ status: "returned", updatedAt: new Date() });
         await db.collection("vehicles").doc(booking.vehicleId).update({ status: "available" });

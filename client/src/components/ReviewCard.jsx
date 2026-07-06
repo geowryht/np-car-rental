@@ -1,8 +1,10 @@
 import StarRating from "./StarRating";
 
 function timeAgo(date) {
+    if (!date) return "";
     const now = new Date();
-    const d = date.toDate ? date.toDate() : new Date(date);
+    const d = date?.toDate ? date.toDate() : new Date(date?._seconds ? date._seconds * 1000 : date);
+    if (isNaN(d.getTime())) return "";
     const diff = now - d;
     const mins = Math.floor(diff / 60000);
     if (mins < 1) return "just now";

@@ -19,6 +19,7 @@ const statusColors = {
     returned: "bg-blue-100 text-blue-800",
     completed: "bg-blue-100 text-blue-800",
     cancelled: "bg-red-100 text-red-800",
+    cancellation_requested: "bg-orange-100 text-orange-800",
     rejected: "bg-background text-primary/60",
     expired: "bg-gray-100 text-gray-600",
 };
@@ -62,6 +63,16 @@ export default function MyBookings() {
         if (!confirm("Cancel this booking?")) return;
         try {
             await api.put(`/bookings/${id}/cancel`);
+            load();
+        } catch (err) {
+            setError(err.message);
+        }
+    };
+
+    const handleRequestCancellation = async (id) => {
+        if (!confirm("Request to cancel this booking? The host will review your request.")) return;
+        try {
+            await api.put(`/bookings/${id}/request-cancellation`);
             load();
         } catch (err) {
             setError(err.message);
@@ -118,15 +129,21 @@ export default function MyBookings() {
                                 </div>
                             </div>
 
-                            {(b.status === "pending" || b.status === "confirmed") && (
-                                <div className="mt-4 flex gap-3">
-                                    <button
-                                        type="button"
-                                        onClick={() => handleCancel(b.id)}
-                                        className="rounded-xl border border-primary/15 px-4 py-2 text-sm font-semibold text-primary/80 hover:bg-accent/10"
-                                    >
-                                        Cancel
-                                    </button>
+                            {b.status === "pending" && (
+                                <div className="mt-4">
+                                    <button type="button" onClick={() => handleCancel(b.id)} className="rounded-xl border border-primary/15 px-4 py-2 text-sm font-semibold text-primary/80 hover:bg-accent/10">Cancel</button>
+                                </div>
+                            )}
+
+                            {b.status === "confirmed" && (
+                                <div className="mt-4">
+                                    <button type="button" onClick={() => handleRequestCancellation(b.id)} className="rounded-xl border border-primary/15 px-4 py-2 text-sm font-semibold text-primary/80 hover:bg-accent/10">Request Cancellation</button>
+                                </div>
+                            )}
+
+                            {b.status === "cancellation_requested" && (
+                                <div className="mt-4 rounded-xl bg-orange-50 border border-orange-200 px-4 py-3 text-sm font-semibold text-orange-700">
+                                    Cancellation requested. Waiting for host.
                                 </div>
                             )}
 
