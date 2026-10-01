@@ -129,7 +129,7 @@ export default function MyBookings() {
                                 </div>
                             </div>
 
-                            {b.status === "pending" && (
+                            {["pending", "pending_payment"].includes(b.status) && (
                                 <div className="mt-4">
                                     <button type="button" onClick={() => handleCancel(b.id)} className="rounded-xl border border-primary/15 px-4 py-2 text-sm font-semibold text-primary/80 hover:bg-accent/10">Cancel</button>
                                 </div>
@@ -147,7 +147,7 @@ export default function MyBookings() {
                                 </div>
                             )}
 
-                            {(b.status === "returned" || b.status === "completed") && !reviewedIds.has(b.id) && (
+                            {b.status === "returned" && !reviewedIds.has(b.id) && (
                                 <div className="mt-4">
                                     <button
                                         type="button"

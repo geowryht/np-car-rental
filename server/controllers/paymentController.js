@@ -38,7 +38,7 @@ export const createCheckout = async (req, res, next) => {
 
         const overlapping = await db.collection("bookings")
             .where("vehicleId", "==", vehicleId)
-            .where("status", "in", ["paid", "confirmed"])
+            .where("status", "in", ["pending_payment", "pending", "paid", "confirmed", "cancellation_requested"])
             .get();
 
         const hasOverlap = overlapping.docs.some((doc) => {

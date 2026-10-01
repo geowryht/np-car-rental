@@ -17,7 +17,7 @@ export const getStats = async (req, res, next) => {
     let totalRevenue = 0;
     bookingsSnap.docs.forEach((d) => {
       const b = d.data();
-      if (b.status === "confirmed" || b.status === "completed") {
+      if (b.status === "confirmed" || b.status === "returned") {
         totalRevenue += b.totalPrice || 0;
       }
     });
@@ -35,6 +35,9 @@ export const getStats = async (req, res, next) => {
       bookingStatuses[s] = (bookingStatuses[s] || 0) + 1;
     });
 
+    const hostMap = {};
+    usersSnap.docs.forEach((d) => { hostMap[d.id] = { fullName: d.data().fullName || "Unknown" }; });
+
     res.json({
       totalUsers: usersSnap.size,
       totalVehicles: vehiclesSnap.size,
@@ -43,6 +46,11 @@ export const getStats = async (req, res, next) => {
       roles,
       bookingStatuses,
       settings,
+      vehicles: vehiclesSnap.docs.slice(0, 10).map((d) => ({
+        id: d.id,
+        ...d.data(),
+        host: hostMap[d.data().hostId] || null,
+      })),
     });
   } catch (err) {
     next(err);

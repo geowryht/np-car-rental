@@ -213,7 +213,7 @@ export default function HostBookings() {
                                 </div>
                             )}
 
-                            {(b.status === "returned" || b.status === "completed") && !reviewedIds.has(b.id) && (
+                            {b.status === "returned" && !reviewedIds.has(b.id) && (
                                 <div className="mt-4">
                                     <button
                                         type="button"

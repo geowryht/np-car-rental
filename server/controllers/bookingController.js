@@ -3,6 +3,7 @@ import { FieldPath } from "firebase-admin/firestore";
 import AppError from "../utils/AppError.js";
 
 const PLATFORM_FEE = 0.15;
+const ACTIVE_BOOKING_STATUSES = ["pending_payment", "pending", "paid", "confirmed", "cancellation_requested"];
 const Timestamp = new Date().constructor;
 
 function toDateOnly(dateStr) {
@@ -37,7 +38,7 @@ export const createBooking = async (req, res, next) => {
 
     const overlapping = await db.collection("bookings")
       .where("vehicleId", "==", vehicleId)
-      .where("status", "in", ["paid", "confirmed"])
+      .where("status", "in", ACTIVE_BOOKING_STATUSES)
       .get();
 
     const hasOverlap = overlapping.docs.some((doc) => {
@@ -202,11 +203,14 @@ export const cancelBooking = async (req, res, next) => {
     const isHost = booking.hostId === req.user.uid;
 
     if (!isRenter && !isHost) throw new AppError("Not authorized", 403);
-    if (booking.status !== "pending" && booking.status !== "confirmed") {
+    if (!["pending", "pending_payment", "confirmed"].includes(booking.status)) {
       throw new AppError("Booking cannot be cancelled", 400);
     }
 
     await ref.update({ status: "cancelled", updatedAt: new Date() });
+    if (booking.status === "pending_payment") {
+      await db.collection("vehicles").doc(booking.vehicleId).update({ status: "available" });
+    }
     res.json({ message: "Booking cancelled" });
   } catch (err) {
     next(err);
@@ -256,7 +260,7 @@ export const getHostEarnings = async (req, res, next) => {
   try {
     const snap = await db.collection("bookings")
       .where("hostId", "==", req.user.uid)
-      .where("status", "in", ["confirmed", "completed"])
+      .where("status", "in", ["confirmed", "returned"])
       .get();
 
     const earnings = { gross: 0, fee: 0, net: 0, count: 0, byVehicle: {} };

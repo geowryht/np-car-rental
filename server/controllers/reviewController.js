@@ -11,7 +11,7 @@ export const createReview = async (req, res, next) => {
         const bookingDoc = await db.collection("bookings").doc(bookingId).get();
         if (!bookingDoc.exists) throw new AppError("Booking not found", 404);
         const booking = bookingDoc.data();
-        if (booking.status !== "completed" && booking.status !== "returned") throw new AppError("You can only review completed bookings", 400);
+        if (booking.status !== "returned") throw new AppError("You can only review returned bookings", 400);
         const isRenter = booking.renterId === reviewerId;
         const isHost = booking.hostId === reviewerId;
         if (!isRenter && !isHost) throw new AppError("Not authorized", 403);
