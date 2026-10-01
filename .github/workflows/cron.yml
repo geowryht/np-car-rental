@@ -2,28 +2,16 @@ name: Scheduled Background Jobs
 
 on:
   schedule:
-    - cron: "*/30 * * * *"
     - cron: "*/5 * * * *"
-    - cron: "*/2 * * * *"
+  workflow_dispatch:
 
 jobs:
-  cleanup-uploads:
-    if: github.event.schedule == "*/30 * * * *"
+  run-jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Cleanup stale uploads
-        run: curl -s -X POST ${{ secrets.BACKEND_URL }}/api/cron/cleanup-stale-uploads
-
-  check-overdue:
-    if: github.event.schedule == "*/5 * * * *"
-    runs-on: ubuntu-latest
-    steps:
+        run: curl -fsS -X POST ${{ secrets.BACKEND_URL }}/api/cron/cleanup-stale-uploads
       - name: Check overdue bookings
-        run: curl -s -X POST ${{ secrets.BACKEND_URL }}/api/cron/check-overdue-bookings
-
-  expire-unconfirmed:
-    if: github.event.schedule == "*/2 * * * *"
-    runs-on: ubuntu-latest
-    steps:
+        run: curl -fsS -X POST ${{ secrets.BACKEND_URL }}/api/cron/check-overdue-bookings
       - name: Expire unconfirmed bookings
-        run: curl -s -X POST ${{ secrets.BACKEND_URL }}/api/cron/expire-unconfirmed
+        run: curl -fsS -X POST ${{ secrets.BACKEND_URL }}/api/cron/expire-unconfirmed
